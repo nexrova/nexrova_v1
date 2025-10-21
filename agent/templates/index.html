@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nexrova Assistant</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background-color: #f4f7f6;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            gap: 30px;
+        }
+        .chat-container {
+            width: 400px;
+            max-width: 100%;
+            border: 1px solid #d1d1d1;
+            border-radius: 12px;
+            background: #ffffff;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+            display: flex;
+            flex-direction: column;
+            height: 600px;
+        }
+        .chat-header {
+            background-color: #007bff;
+            color: white;
+            padding: 16px;
+            text-align: center;
+            border-radius: 12px 12px 0 0;
+            font-size: 1.2rem;
+            font-weight: 600;
+        }
+        .chat-window {
+            flex-grow: 1;
+            padding: 16px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+        .chat-message {
+            padding: 10px 14px;
+            border-radius: 18px;
+            max-width: 80%;
+            line-height: 1.4;
+            word-wrap: break-word;
+        }
+        .bot-message {
+            background-color: #e9ecef;
+            color: #333;
+            align-self: flex-start;
+            border-bottom-left-radius: 4px;
+        }
+        .user-message {
+            background-color: #007bff;
+            color: white;
+            align-self: flex-end;
+            border-bottom-right-radius: 4px;
+        }
+        .chat-form {
+            display: flex;
+            padding: 16px;
+            border-top: 1px solid #e0e0e0;
+        }
+        #message-input {
+            flex-grow: 1;
+            border: 1px solid #ccc;
+            border-radius: 20px;
+            padding: 10px 16px;
+            font-size: 1rem;
+            margin-right: 10px;
+        }
+        #send-button {
+            border: none;
+            background-color: #007bff;
+            color: white;
+            font-weight: 600;
+            border-radius: 50%;
+            width: 44px;
+            height: 44px;
+            cursor: pointer;
+            font-size: 1.2rem;
+            transition: background-color 0.2s;
+        }
+        #send-button:hover {
+            background-color: #0056b3;
+        }
+        
+        /* Key Box Simulation */
+        .key-box-container {
+            display: none; /* Hidden by default */
+            width: 300px;
+            padding: 20px;
+            background: #333;
+            border-radius: 10px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+        }
+        .key-box-header {
+            color: white;
+            text-align: center;
+            font-size: 1.2rem;
+            margin-bottom: 20px;
+        }
+        .key-box-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 10px;
+        }
+        .key-cell {
+            background-color: #555;
+            color: #aaa;
+            height: 60px;
+            border-radius: 6px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-weight: bold;
+            font-family: monospace, sans-serif;
+            font-size: 1.1rem;
+            transition: all 0.3s ease;
+        }
+        .key-cell.unlocked {
+            background-color: #28a745;
+            color: white;
+            box-shadow: 0 0 15px #28a745;
+            transform: scale(1.05);
+        }
+        .key-cell.unlocked .cell-id {
+            display: none;
+        }
+        .key-cell .cell-room {
+            display: none;
+        }
+        .key-cell.unlocked .cell-room {
+            display: block;
+            font-size: 0.9rem;
+            font-weight: bold;
+        }
+
+    </style>
+</head>
+<body>
+
+    <div class="chat-container">
+        <div class="chat-header">Nexrova Check-in</div>
+        <div class="chat-window" id="chat-window">
+            <div class="chat-message bot-message">
+                Hello! I'm Nexrova, your virtual assistant. I can help you check in.
+            </div>
+        </div>
+        <form class="chat-form" id="chat-form">
+            <input type="text" id="message-input" placeholder="Type 'check in' to start..." autocomplete="off">
+            <button id="send-button" type="submit">➤</button>
+        </form>
+    </div>
+
+    <div class="key-box-container" id="key-box-container">
+        <div class="key-box-header">Key Retrieval System</div>
+        <div class="key-box-grid">
+            <div class="key-cell" data-box-id="A1"><span class="cell-id">A1</span><span class="cell-room"></span></div>
+            <div class="key-cell" data-box-id="A2"><span class="cell-id">A2</span><span class="cell-room"></span></div>
+            <div class="key-cell" data-box-id="A3"><span class="cell-id">A3</span><span class="cell-room"></span></div>
+            <div class="key-cell" data-box-id="A4"><span class="cell-id">A4</span><span class="cell-room"></span></div>
+            <div class="key-cell" data-box-id="B1"><span class="cell-id">B1</span><span class="cell-room"></span></div>
+            <div class="key-cell" data-box-id="B2"><span class="cell-id">B2</span><span class="cell-room"></span></div>
+            <div class="key-cell" data-box-id="B3"><span class="cell-id">B3</span><span class="cell-room"></span></div>
+            <div class="key-cell" data-box-id="B4"><span class="cell-id">B4</span><span class="cell-room"></span></div>
+        </div>
+    </div>
+
+    <script>
+        const chatForm = document.getElementById('chat-form');
+        const messageInput = document.getElementById('message-input');
+        const chatWindow = document.getElementById('chat-window');
+        const keyBoxContainer = document.getElementById('key-box-container');
+
+        chatForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const message = messageInput.value.trim();
+            if (!message) return;
+
+            displayMessage(message, 'user');
+            messageInput.value = '';
+            
+            try {
+                const response = await fetch('/chat', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ message: message })
+                });
+
+                if (!response.ok) throw new Error('Network error');
+                
+                const data = await response.json();
+                
+                displayMessage(data.response, 'bot');
+
+                // Check for the 'unlock' action
+                if (data.action && data.action.type === 'unlock') {
+                    unlockBox(data.action.box_id, data.action.room_number);
+                }
+
+            } catch (error) {
+                console.error('Error:', error);
+                displayMessage('Sorry, I seem to be having trouble connecting. Please try again.', 'bot');
+            }
+        });
+
+        function displayMessage(message, sender) {
+            const messageElement = document.createElement('div');
+            messageElement.classList.add('chat-message', `${sender}-message`);
+            messageElement.innerHTML = message; // Use innerHTML to render bold tags
+            chatWindow.appendChild(messageElement);
+            chatWindow.scrollTop = chatWindow.scrollHeight; // Auto-scroll
+        }
+
+        function unlockBox(boxId, roomNumber) {
+            // Show the key box
+            keyBoxContainer.style.display = 'block';
+
+            // Find the specific cell
+            const cell = document.querySelector(`.key-cell[data-box-id="${boxId}"]`);
+            if (cell) {
+                // Reset any other unlocked cells
+                document.querySelectorAll('.key-cell.unlocked').forEach(c => {
+                    c.classList.remove('unlocked');
+                    c.querySelector('.cell-room').textContent = '';
+                });
+
+                // Unlock the new cell
+                setTimeout(() => {
+                    cell.classList.add('unlocked');
+                    cell.querySelector('.cell-room').textContent = `Room ${roomNumber}`;
+                }, 500); // 0.5s delay for effect
+            }
+        }
+    </script>
+</body>
+</html>
+

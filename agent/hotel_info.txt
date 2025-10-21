@@ -1,0 +1,12 @@
+Hotel Name: Chennai BnB Serviced Apartments
+Location: Thiru Nagar, Chennai, Tamil Nadu, India
+Address: Thiru Nagar, Chennai
+Contact: +91-XXXXXXXXXX
+Email: info@chennaibnb.com
+Total Rooms: 8
+Check-in Time: 14:00
+Check-out Time: 11:00
+Amenities: Free WiFi, 24/7 Reception, Housekeeping, Kitchen Facilities, Parking
+Nearby Attractions: Marina Beach, Kapaleeshwarar Temple, Express Avenue Mall
+Emergency Contact: +91-YYYYYYYYYY
+Languages Spoken: English, Tamil, Hindi
