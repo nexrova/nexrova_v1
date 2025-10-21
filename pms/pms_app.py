@@ -35,8 +35,8 @@ class Database:
                 'status': 'available',  # available, occupied, maintenance
                 'floor': 1 if i <= 4 else 2,
                 'amenities': ['WiFi', 'AC', 'TV', 'Mini Fridge', 'Kitchenette'],
-                'current_guest_id': None,  # Track who's checked in
-                'current_booking_id': None  # Track active booking
+                'current_guest_id': None,
+                'current_booking_id': None
             })
         return rooms
 
@@ -61,7 +61,6 @@ class Database:
         if room['current_guest_id']:
             guest = self.get_guest(room['current_guest_id'])
             booking = self.get_booking(room['current_booking_id'])
-
             room_data['current_guest'] = {
                 'guest_id': guest['guest_id'],
                 'name': guest['name'],
@@ -145,6 +144,7 @@ class Database:
         check_out_dt = datetime.strptime(check_out, '%Y-%m-%d')
 
         for booking in self.bookings:
+            # FIXED: Only check bookings that are confirmed or checked_in (not cancelled or checked_out)
             if booking['room_id'] == room_id and booking['status'] in ['confirmed', 'checked_in']:
                 booking_in = datetime.strptime(booking['check_in'], '%Y-%m-%d')
                 booking_out = datetime.strptime(booking['check_out'], '%Y-%m-%d')
@@ -161,7 +161,7 @@ class Database:
             'check_in': booking_data['check_in'],
             'check_out': booking_data['check_out'],
             'total_price': booking_data['total_price'],
-            'status': 'confirmed',
+            'status': 'confirmed',  # FIXED: Start as confirmed, not occupied
             'created_at': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
             'checked_in_at': None,
             'checked_out_at': None
@@ -169,54 +169,68 @@ class Database:
         self.bookings.append(booking)
         self.booking_id_counter += 1
 
-        # Update room - mark as occupied and assign guest
-        self.update_room_status(
-            booking_data['room_id'], 
-            'occupied',
-            guest_id=booking_data['guest_id'],
-            booking_id=booking['booking_id']
-        )
+        # FIXED: Do NOT mark room as occupied during booking creation
+        # Room should only be occupied when guest checks in
 
         return booking
 
     def update_booking_status(self, booking_id, new_status):
         booking = self.get_booking(booking_id)
-        if booking:
-            old_status = booking['status']
-            booking['status'] = new_status
+        if not booking:
+            return None
 
-            # Track timestamps
-            if new_status == 'checked_in':
-                booking['checked_in_at'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        old_status = booking['status']
+        booking['status'] = new_status
+
+        # FIXED: Proper state transitions with room status updates
+        if new_status == 'checked_in' and old_status != 'checked_in':
+            # Guest is checking in - mark room as occupied
+            booking['checked_in_at'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            self.update_room_status(
+                booking['room_id'], 
+                'occupied',
+                guest_id=booking['guest_id'],
+                booking_id=booking_id
+            )
+
+        elif new_status == 'checked_out' and old_status == 'checked_in':
+            # Guest is checking out - free the room
+            booking['checked_out_at'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+
+            # Check if there's another guest checking in today
+            today = datetime.now().strftime('%Y-%m-%d')
+            next_booking = next(
+                (b for b in self.bookings 
+                 if b['room_id'] == booking['room_id'] 
+                 and b['check_in'] == today 
+                 and b['status'] == 'confirmed'
+                 and b['booking_id'] != booking_id),
+                None
+            )
+
+            if next_booking:
+                # Keep room occupied for next guest
                 self.update_room_status(
-                    booking['room_id'], 
+                    booking['room_id'],
                     'occupied',
-                    guest_id=booking['guest_id'],
-                    booking_id=booking_id
+                    guest_id=next_booking['guest_id'],
+                    booking_id=next_booking['booking_id']
                 )
-            elif new_status == 'checked_out':
-                booking['checked_out_at'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-                # Check if there are other active bookings for this room
-                other_active = any(
-                    b['room_id'] == booking['room_id'] and 
-                    b['booking_id'] != booking_id and 
-                    b['status'] in ['confirmed', 'checked_in']
-                    for b in self.bookings
-                )
-                if not other_active:
-                    self.update_room_status(booking['room_id'], 'available')
-            elif new_status == 'cancelled':
-                other_active = any(
-                    b['room_id'] == booking['room_id'] and 
-                    b['booking_id'] != booking_id and 
-                    b['status'] in ['confirmed', 'checked_in']
-                    for b in self.bookings
-                )
-                if not other_active:
-                    self.update_room_status(booking['room_id'], 'available')
+                next_booking['status'] = 'checked_in'
+                next_booking['checked_in_at'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            else:
+                # No same-day check-in, mark as available
+                self.update_room_status(booking['room_id'], 'available')
 
-            return booking
-        return None
+        elif new_status == 'cancelled':
+            # Booking cancelled - free room if it was held
+            if old_status == 'checked_in':
+                # If guest was checked in and cancels, check out
+                booking['checked_out_at'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+                self.update_room_status(booking['room_id'], 'available')
+            # If just confirmed, no room status change needed (room should already be available)
+
+        return booking
 
     def create_guest(self, guest_data):
         guest = {
@@ -427,7 +441,6 @@ def api_rooms():
 def api_room_detail(room_id):
     """Get or update specific room details with guest information"""
     room = db.get_room_with_guest_details(room_id)
-
     if not room:
         return jsonify({
             'success': False,
@@ -478,7 +491,6 @@ def api_room_detail(room_id):
 def api_room_current_guest(room_id):
     """Get current guest checked into a specific room"""
     room = db.get_room_with_guest_details(room_id)
-
     if not room:
         return jsonify({
             'success': False,
@@ -610,7 +622,6 @@ def api_bookings():
 def api_booking_detail(booking_id):
     """Get, update, or cancel booking with full details"""
     booking = db.get_booking(booking_id)
-
     if not booking:
         return jsonify({
             'success': False,
@@ -620,7 +631,6 @@ def api_booking_detail(booking_id):
     if request.method == 'GET':
         room = db.get_room(booking['room_id'])
         guest = db.get_guest(booking['guest_id'])
-
         enriched_booking = {
             **booking,
             'room_number': room['room_number'] if room else 'N/A',
@@ -629,7 +639,6 @@ def api_booking_detail(booking_id):
             'guest_email': guest['email'] if guest else 'N/A',
             'guest_phone': guest['phone'] if guest else 'N/A'
         }
-
         return jsonify({
             'success': True,
             'data': enriched_booking
@@ -646,9 +655,21 @@ def api_booking_detail(booking_id):
 
             updated_booking = db.update_booking_status(booking_id, data['status'])
 
+            # FIXED: Return enriched booking with room details
+            room = db.get_room(updated_booking['room_id'])
+            guest = db.get_guest(updated_booking['guest_id'])
+            enriched_booking = {
+                **updated_booking,
+                'room_number': room['room_number'] if room else 'N/A',
+                'room_type': room['room_type'] if room else 'N/A',
+                'guest_name': guest['name'] if guest else 'N/A',
+                'guest_email': guest['email'] if guest else 'N/A',
+                'guest_phone': guest['phone'] if guest else 'N/A'
+            }
+
             return jsonify({
                 'success': True,
-                'data': updated_booking
+                'data': enriched_booking
             })
 
         return jsonify({

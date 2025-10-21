@@ -1,0 +1,12 @@
+[
+  {
+    "notification_id": "HK20251021190013",
+    "timestamp": "2025-10-21 19:00:13",
+    "guest_name": "alan",
+    "room_number": "104",
+    "request": "I spill gravy",
+    "summary": "The guest has spilled gravy in their room and requests for housekeeping assistance to clean it up.",
+    "status": "pending",
+    "email_sent": false
+  }
+]
