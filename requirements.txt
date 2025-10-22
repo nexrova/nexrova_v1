@@ -1,3 +1,6 @@
 flask
 flask-session
 requests
+supabase
+python-dotenv
+gunicorn

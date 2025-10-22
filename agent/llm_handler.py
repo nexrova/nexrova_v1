@@ -7,17 +7,7 @@ OLLAMA_API_URL = os.environ.get('OLLAMA_API_URL', 'http://127.0.0.1:11434')
 OLLAMA_MODEL = os.environ.get('OLLAMA_MODEL', 'mistral')
 
 def call_ollama(prompt, model=OLLAMA_MODEL, max_tokens=500):
-    """
-    Call Ollama API for LLM inference.
-
-    Args:
-        prompt: The prompt to send to the LLM
-        model: The model name (default: mistral)
-        max_tokens: Maximum tokens in response
-
-    Returns:
-        str: The LLM response, or fallback response if Ollama is unavailable
-    """
+    """Call Ollama API with improved error handling"""
     try:
         response = requests.post(
             f"{OLLAMA_API_URL}/api/generate",
@@ -27,10 +17,11 @@ def call_ollama(prompt, model=OLLAMA_MODEL, max_tokens=500):
                 "stream": False,
                 "options": {
                     "num_predict": max_tokens,
-                    "temperature": 0.7
+                    "temperature": 0.3,  # Lower temperature for more consistent responses
+                    "top_p": 0.9
                 }
             },
-            timeout=10
+            timeout=15  # Increased timeout
         )
 
         if response.status_code == 200:
@@ -52,155 +43,169 @@ def call_ollama(prompt, model=OLLAMA_MODEL, max_tokens=500):
 
 def llm_classify_intent(user_message):
     """
-    Classify user intent using Ollama Mistral 7B with fallback to keyword matching.
-    Returns: 'check_in', 'faq', 'housekeeping', 'other'
-
-    FIXED: Less aggressive classification, especially for check_in
+    Improved intent classification with better logic and fallbacks
     """
-    prompt = f"""You are a hotel assistant. Classify the user's intent into ONE of these categories:
-- check_in: User wants to START checking into their room (phrases like "I want to check in", "check me in")
-- housekeeping: User needs cleaning, room service, towels, amenities, maintenance, or reports spills/issues
-- faq: User is asking questions about hotel info, amenities, location, wifi, parking, directions
-- other: Anything else, including statements about being already checked in
+    user_lower = user_message.lower().strip()
+    
+    # Handle very short messages
+    if len(user_message) < 2:
+        return 'other'
+    
+    prompt = f"""You are a hotel chatbot. Classify this guest message into exactly ONE category:
 
-User message: "{user_message}"
+check_in: Guest wants to START the check-in process (not already checked in)
+housekeeping: Guest needs cleaning, towels, maintenance, room service, or reports issues/spills
+faq: Guest is asking questions about hotel facilities, location, amenities, directions, timing
+other: Everything else including greetings, thanks, complaints, already checked in
 
-Respond with ONLY ONE WORD: check_in, housekeeping, faq, or other.
-Intent:"""
+Message: "{user_message}"
 
-    # Try Ollama first
-    llm_response = call_ollama(prompt, max_tokens=10)
+Rules:
+- If they say they're already checked in -> other
+- If asking about room cleaning/issues -> housekeeping  
+- If asking what/where/when/how about hotel -> faq
+- Only "check_in" if they want to START checking in
 
+Respond with only ONE word:"""
+
+    # Try LLM first
+    llm_response = call_ollama(prompt, max_tokens=20)
+    
     if llm_response:
-        # Parse LLM response
-        intent = llm_response.lower().strip()
-        if 'check' in intent and 'in' in intent:
-            return 'check_in'
-        elif 'housekeeping' in intent or 'cleaning' in intent:
-            return 'housekeeping'
-        elif 'faq' in intent or 'question' in intent:
-            return 'faq'
-        elif any(word in intent for word in ['check_in', 'housekeeping', 'faq']):
-            # Extract the exact word
-            for word in ['check_in', 'housekeeping', 'faq', 'other']:
-                if word in intent:
-                    return word
+        response_clean = llm_response.lower().strip()
+        # Extract intent from response
+        for intent in ['check_in', 'housekeeping', 'faq', 'other']:
+            if intent in response_clean:
+                return intent
 
-    # Fallback to keyword matching
-    user_lower = user_message.lower()
-
-    # FIXED: More specific check-in keywords (avoid false positives)
-    # Only trigger check_in if user is STARTING the process
-    if any(phrase in user_lower for phrase in [
-        'i want to check in',
-        'i need to check in', 
-        'check me in',
-        'start check in',
-        'begin check in',
-        'checking in now'
-    ]):
-        return 'check_in'
-
-    # Single word "check in" without context
-    if user_lower.strip() in ['check in', 'check-in', 'checkin']:
-        return 'check_in'
-
-    # FIXED: Expanded housekeeping keywords - catches spills, damage, issues
-    housekeeping_keywords = [
-        # Cleaning
-        'clean', 'housekeeping', 'room service', 'maid',
-        # Items needed
-        'towel', 'toilet paper', 'tissue', 'soap', 'shampoo', 'amenities',
-        # Issues/problems
-        'spill', 'spilled', 'dirty', 'mess', 'stain', 'wet',
-        # Damage/maintenance
-        'broken', 'fix', 'repair', 'maintenance', 'not working',
-        # Requests
-        'need more', 'need extra', 'need new', 'replace',
-        # Food/drink spills
-        'gravy', 'coffee', 'water', 'juice', 'food', 'drink',
-        # Room issues
-        'ac', 'air conditioning', 'heater', 'light', 'bulb', 'door', 'lock',
-        # Bathroom
-        'shower', 'bathtub', 'sink', 'tap', 'flush', 'toilet',
-        # Requests
-        'please clean', 'please fix', 'help with'
+    # Enhanced fallback keyword matching
+    
+    # Check-in: Only if explicitly starting check-in process
+    checkin_phrases = [
+        'check in', 'check-in', 'checkin',
+        'i want to check in', 'need to check in', 'check me in',
+        'start check in', 'begin check in'
     ]
+    
+    # Don't classify as check-in if already checked in
+    already_checked = any(phrase in user_lower for phrase in [
+        'already checked', 'already check', "i'm checked", 'checked in already'
+    ])
+    
+    if not already_checked and any(phrase in user_lower for phrase in checkin_phrases):
+        return 'check_in'
 
-    if any(k in user_lower for k in housekeeping_keywords):
+    # Housekeeping: Expanded to catch more scenarios
+    housekeeping_keywords = [
+        # Basic cleaning
+        'clean', 'housekeeping', 'maid', 'room service',
+        # Items/amenities
+        'towel', 'toilet paper', 'tissue', 'soap', 'shampoo', 'amenities',
+        'pillow', 'blanket', 'sheet', 'linen',
+        # Issues/problems
+        'spill', 'spilled', 'dirty', 'mess', 'stain', 'wet', 'sticky',
+        'broken', 'not working', 'fix', 'repair', 'maintenance',
+        # Food/drink related
+        'gravy', 'coffee', 'water', 'juice', 'food', 'drink', 'wine',
+        # Room equipment
+        'ac', 'air conditioning', 'heater', 'light', 'bulb', 'tv', 'remote',
+        'door', 'lock', 'key', 'card', 'shower', 'toilet', 'sink', 'tap',
+        # Request phrases
+        'need more', 'need extra', 'need new', 'replace', 'change',
+        'please clean', 'please fix', 'help with', 'can you clean'
+    ]
+    
+    if any(keyword in user_lower for keyword in housekeeping_keywords):
         return 'housekeeping'
 
-    # FAQ keywords - FIXED: Added "direction" related terms
-    if any(k in user_lower for k in ['wifi', 'password', 'amenities', 'location', 'address', 
-                                       'check-in time', 'check-out time', 'contact', 'phone',
-                                       'where', 'what', 'when', 'how', 'parking', 'breakfast',
-                                       'direction', 'directions', 'get to', 'find', 'map',
-                                       'timing', 'hours', 'open', 'close']):
+    # FAQ: Hotel information requests
+    faq_keywords = [
+        'wifi', 'password', 'internet', 'location', 'address', 'where',
+        'what time', 'when', 'how', 'parking', 'breakfast', 'amenities',
+        'pool', 'gym', 'restaurant', 'check-in time', 'check-out time',
+        'direction', 'directions', 'get to', 'find', 'map', 'nearby',
+        'timing', 'hours', 'open', 'close', 'contact', 'phone',
+        'what is', 'where is', 'how to', 'tell me about'
+    ]
+    
+    if any(keyword in user_lower for keyword in faq_keywords):
         return 'faq'
-
-    # FIXED: Statements about being already checked in -> 'other'
-    if any(phrase in user_lower for phrase in ['already checked', 'already check', "i'm checked"]):
-        return 'other'
 
     return 'other'
 
 def llm_answer_faq(user_message, hotel_info):
     """
-    Use Ollama Mistral 7B to answer FAQ using hotel_info.txt context, with fallback to keyword search.
+    Improved FAQ answering with better context understanding
     """
-    prompt = f"""You are a helpful hotel assistant. Answer the guest's question using ONLY the information provided below. 
-If the information is not available, politely say you don't have that information and suggest contacting the front desk.
+    prompt = f"""You are a helpful hotel assistant. Answer the guest's question using the hotel information provided.
+
+Rules:
+- Use ONLY the information from the hotel details below
+- Be concise but complete
+- If information is not available, politely say so and suggest contacting front desk
+- Be friendly and professional
+- Format your response clearly
 
 Hotel Information:
 {hotel_info}
 
 Guest Question: {user_message}
 
-Answer (be concise and helpful):"""
+Assistant Response:"""
 
-    # Try Ollama first
-    llm_response = call_ollama(prompt, max_tokens=300)
-
+    # Try LLM first
+    llm_response = call_ollama(prompt, max_tokens=400)
+    
     if llm_response and len(llm_response) > 20:
         return llm_response
 
-    # Fallback to keyword search
+    # Enhanced fallback keyword search
     user_lower = user_message.lower()
-    relevant_lines = []
-
-    for line in hotel_info.splitlines():
-        line = line.strip()
-        if not line:
+    relevant_sections = []
+    
+    # Split hotel info into sections and search
+    sections = hotel_info.split('\n\n')
+    
+    for section in sections:
+        if not section.strip():
             continue
-
-        # Check if any word from the question appears in this line
-        words = user_lower.split()
-        for word in words:
-            if len(word) > 3 and word in line.lower():
-                relevant_lines.append(line)
-                break
-
-    if relevant_lines:
-        return "\n".join(relevant_lines[:3])  # Return top 3 relevant lines
+            
+        section_lower = section.lower()
+        
+        # Check if user question keywords appear in this section
+        question_words = [word for word in user_lower.split() if len(word) > 3]
+        matches = sum(1 for word in question_words if word in section_lower)
+        
+        if matches > 0:
+            relevant_sections.append((section.strip(), matches))
+    
+    if relevant_sections:
+        # Sort by relevance and return top sections
+        relevant_sections.sort(key=lambda x: x[1], reverse=True)
+        return '\n\n'.join([section[0] for section in relevant_sections[:2]])
 
     # Generic fallback
-    return "I'm sorry, I don't have that specific information. Please contact the front desk at the number provided, or I can help you with check-in or housekeeping requests."
+    return "I'm sorry, I don't have that specific information in my database. For detailed inquiries, please contact our front desk. I can also help you with check-in or housekeeping requests if needed."
 
 def summarize_request(request_text):
     """
-    Use LLM to create a concise summary of housekeeping request.
+    Improved request summarization
     """
-    prompt = f"""Summarize this hotel guest's housekeeping request in ONE clear sentence:
+    prompt = f"""Summarize this hotel guest's housekeeping request in one clear, professional sentence.
 
-Guest request: "{request_text}"
+Guest Request: "{request_text}"
 
-Summary:"""
+Summary (one sentence):"""
 
-    # Try Ollama first
-    llm_response = call_ollama(prompt, max_tokens=100)
-
+    # Try LLM first
+    llm_response = call_ollama(prompt, max_tokens=150)
+    
     if llm_response and len(llm_response) > 10:
-        return llm_response
+        return llm_response.strip()
 
-    # Fallback: Return the original request (cleaned up)
-    return request_text.strip()
+    # Fallback: Clean up the original request
+    cleaned = request_text.strip()
+    if len(cleaned) > 100:
+        cleaned = cleaned[:100] + "..."
+    
+    return cleaned
