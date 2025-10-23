@@ -1,4 +1,10 @@
-from supabase import create_client
-from app.config import Config
+# app/models/supabase_client.py
+from supabase import create_client, Client
+from flask import current_app
 
-supabase = create_client(Config.SUPABASE_URL, Config.SUPABASE_KEY)
+def get_supabase_client() -> Client:
+    """Get Supabase client instance"""
+    return create_client(
+        current_app.config['SUPABASE_URL'],
+        current_app.config['SUPABASE_KEY']
+    )

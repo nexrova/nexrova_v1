@@ -1,9 +1,17 @@
-from app.models.supabase_client import supabase
-from datetime import datetime
+# app/services/housekeeping_service.py
+import os
+from housekeeping_notification import send_housekeeping_notification
 
-def create_service_request(interaction_id, service_type):
-    supabase.table('ServiceRequests').insert({
-        'interaction_id': interaction_id,
-        'service_type': service_type,
-        'request_time': datetime.now().isoformat()
-    }).execute()
+def process_housekeeping_request(user_message, guest_name, room_number, summary):
+    """Process a housekeeping request and send notification"""
+    try:
+        send_result = send_housekeeping_notification(
+            request_text=user_message,
+            summary=summary,
+            guest_name=guest_name,
+            room_number=room_number
+        )
+        return send_result
+    except Exception as e:
+        print(f"Error sending housekeeping notification: {e}")
+        return {'success': False, 'message': str(e)}

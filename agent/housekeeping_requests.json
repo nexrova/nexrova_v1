@@ -8,5 +8,15 @@
     "summary": "The guest has spilled gravy in their room and requests for housekeeping assistance to clean it up.",
     "status": "pending",
     "email_sent": false
+  },
+  {
+    "notification_id": "HK20251023124911",
+    "timestamp": "2025-10-23 12:49:11",
+    "guest_name": "alan",
+    "room_number": "101",
+    "request": "gravy spill on my room",
+    "summary": "The guest has reported a gravy spill in their room requiring immediate cleaning attention.",
+    "status": "pending",
+    "email_sent": false
   }
 ]
