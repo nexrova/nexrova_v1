@@ -1,15 +1,14 @@
 {% extends "base.html" %}
 
-{% block title %}Guests - Chennai BnB PMS{% endblock %}
+{% block title %}Guests - {{ hotel.name }}{% endblock %}
+{% block page_title %}Guest Management{% endblock %}
 
 {% block content %}
-<h1 style="margin-bottom: 2rem;">Guest Management</h1>
-
 <div class="card">
     <h2 style="margin-bottom: 1.5rem;">All Guests ({{ guests|length }})</h2>
 
     {% if guests|length > 0 %}
-    <table>
+    <table class="data-table">
         <thead>
             <tr>
                 <th>Guest ID</th>
@@ -51,18 +50,22 @@
         </tbody>
     </table>
     {% else %}
-    <div style="text-align: center; padding: 3rem; color: #666;">
+    <div style="text-align: center; padding: 3rem; color: var(--text-secondary);">
+        <i class="fas fa-users" style="font-size: 48px; margin-bottom: 20px; color: var(--text-light);"></i>
         <h3>No guests yet</h3>
         <p>Guests are automatically created when you make bookings</p>
+        <a href="/new-booking" class="btn btn-primary" style="margin-top: 20px;">
+            <i class="fas fa-plus"></i> Create First Booking
+        </a>
     </div>
     {% endif %}
 </div>
 
 <div class="card">
     <h2 style="margin-bottom: 1rem;">💡 Guest API Access</h2>
-    <p style="color: #666; margin-bottom: 1rem;">Access guest information programmatically</p>
+    <p style="color: var(--text-secondary); margin-bottom: 1rem;">Access guest information programmatically</p>
 
-    <table>
+    <table class="data-table">
         <thead>
             <tr>
                 <th>Endpoint</th>

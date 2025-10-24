@@ -1,11 +1,16 @@
 {% extends "base.html" %}
 
-{% block title %}Edit Room {{ room.room_number }} - Chennai BnB PMS{% endblock %}
+{% block title %}Edit Room {{ room.room_number }} - {{ hotel.name }}{% endblock %}
+{% block page_title %}Edit Room {{ room.room_number }}{% endblock %}
 
 {% block content %}
-<h1 style="margin-bottom: 2rem;">Edit Room {{ room.room_number }}</h1>
-
 <div class="card">
+    <div class="mb-4">
+        <a href="/rooms" class="btn btn-secondary">
+            <i class="fas fa-arrow-left"></i> Back to Rooms
+        </a>
+    </div>
+
     <h2 style="margin-bottom: 1.5rem;">Room Details</h2>
 
     <form method="POST" action="/rooms/edit/{{ room.room_id }}">
@@ -64,14 +69,14 @@
 
         <div style="margin-top: 2rem;">
             <button type="submit" class="btn btn-success">Save Changes</button>
-            <a href="/rooms" class="btn" style="margin-left: 1rem;">Cancel</a>
+            <a href="/rooms" class="btn btn-secondary" style="margin-left: 1rem;">Cancel</a>
         </div>
     </form>
 </div>
 
 <div class="card">
     <h2 style="margin-bottom: 1rem;">Status Information</h2>
-    <table>
+    <table class="data-table">
         <thead>
             <tr>
                 <th>Status</th>

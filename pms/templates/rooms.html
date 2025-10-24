@@ -1,88 +1,84 @@
 {% extends "base.html" %}
-
-{% block title %}Rooms - Chennai BnB PMS{% endblock %}
+{% block title %}Rooms - {{ hotel.name }}{% endblock %}
+{% block page_title %}Room Management{% endblock %}
 
 {% block content %}
-<h1 style="margin-bottom: 2rem;">Room Management</h1>
-
 <div class="card">
-    <h2 style="margin-bottom: 1.5rem;">All Rooms ({{ rooms|length }})</h2>
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+        <div>
+            <h2>All Rooms</h2>
+            <p style="color: var(--text-secondary); margin-top: 5px;">Manage room availability and pricing</p>
+        </div>
+        <div>
+            <a href="/dashboard" class="btn btn-secondary">
+                <i class="fas fa-chart-line"></i> Dashboard
+            </a>
+        </div>
+    </div>
+</div>
 
-    <div class="room-grid">
-        {% for room in rooms %}
-        <div class="room-card" style="{% if room.status == 'occupied' %}border-left: 4px solid #f39c12;{% elif room.status == 'maintenance' %}border-left: 4px solid #e74c3c;{% else %}border-left: 4px solid #27ae60;{% endif %}">
-            <h3>Room {{ room.room_number }}</h3>
+<div class="rooms-grid">
+    {% for room in rooms %}
+    <div class="room-card">
+        <div class="room-header">
+            <div class="room-number">
+                <i class="fas fa-door-closed"></i>
+                <span>{{ room.room_number }}</span>
+            </div>
+            <div class="room-status {{ room.status }}">
+                {{ room.status|upper }}
+            </div>
+        </div>
+        
+        <div class="room-details">
+            <h3>{{ room.room_type }}</h3>
+            
             <div class="room-info">
-                <p><strong>Type:</strong> {{ room.room_type }}</p>
-                <p><strong>Floor:</strong> {{ room.floor }}</p>
-                <p>
-                    <strong>Status:</strong>
-                    {% if room.status == 'available' %}
-                    <span class="badge badge-success">Available</span>
-                    {% elif room.status == 'occupied' %}
-                    <span class="badge badge-warning">Occupied</span>
-                    {% else %}
-                    <span class="badge badge-danger">Maintenance</span>
-                    {% endif %}
-                </p>
-                <p><strong>Price:</strong> ₹{{ room.base_price }}/night</p>
-
-                {% if room.current_guest %}
-                <div style="margin-top: 1rem; padding: 1rem; background: #fff3cd; border-radius: 5px; border-left: 3px solid #f39c12;">
-                    <p style="margin: 0; font-weight: bold; color: #856404;">👤 Current Guest</p>
-                    <p style="margin: 0.5rem 0 0 0; color: #856404;">
-                        <strong>{{ room.current_guest.name }}</strong><br>
-                        {{ room.current_guest.email }}<br>
-                        {{ room.current_guest.phone }}<br>
-                        <small>Check-in: {{ room.current_guest.check_in }}</small><br>
-                        <small>Check-out: {{ room.current_guest.check_out }}</small><br>
-                        <small>Booking #{{ room.current_guest.booking_id }}</small>
-                    </p>
+                <div>
+                    <i class="fas fa-rupee-sign"></i>
+                    <span>₹{{ room.base_price }}/night</span>
                 </div>
-                {% endif %}
-
-                <p style="margin-top: 0.5rem;"><strong>Amenities:</strong> {{ room.amenities|join(', ') }}</p>
+                <div>
+                    <i class="fas fa-building"></i>
+                    <span>Floor {{ room.floor }}</span>
+                </div>
             </div>
-
-            <div class="room-actions">
-                <a href="/rooms/edit/{{ room.room_id }}" class="btn btn-small">
-                    Edit Room
-                </a>
+            
+            {% if room.amenities %}
+            <div class="room-amenities">
+                {% for amenity in room.amenities[:3] %}
+                <span>{{ amenity }}</span>
+                {% endfor %}
             </div>
+            {% endif %}
+            
+            {% if room.current_guest %}
+            <div class="room-guest">
+                <i class="fas fa-user"></i>
+                <div>
+                    <strong>{{ room.current_guest.name }}</strong>
+                    <small>Check-out: {{ room.current_guest.check_out }}</small>
+                </div>
+            </div>
+            {% endif %}
         </div>
-        {% endfor %}
+        
+        <div class="room-actions">
+            <a href="/rooms/edit/{{ room.room_id }}">
+                <i class="fas fa-edit"></i> Edit
+            </a>
+        </div>
     </div>
+    {% endfor %}
 </div>
 
+{% if not rooms %}
 <div class="card">
-    <h2 style="margin-bottom: 1rem;">Room Types & Default Pricing</h2>
-    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1.5rem; margin-top: 1rem;">
-        <div style="padding: 1.5rem; background: #f8f9fa; border-radius: 8px; border-left: 4px solid #3498db;">
-            <h3 style="color: #3498db;">Deluxe</h3>
-            <p style="font-size: 1.5rem; margin: 0.5rem 0;">₹3,500</p>
-            <p style="color: #666;">per night (default)</p>
-        </div>
-
-        <div style="padding: 1.5rem; background: #f8f9fa; border-radius: 8px; border-left: 4px solid #9b59b6;">
-            <h3 style="color: #9b59b6;">Premium</h3>
-            <p style="font-size: 1.5rem; margin: 0.5rem 0;">₹4,500</p>
-            <p style="color: #666;">per night (default)</p>
-        </div>
-
-        <div style="padding: 1.5rem; background: #f8f9fa; border-radius: 8px; border-left: 4px solid #e67e22;">
-            <h3 style="color: #e67e22;">Suite</h3>
-            <p style="font-size: 1.5rem; margin: 0.5rem 0;">₹6,000</p>
-            <p style="color: #666;">per night (default)</p>
-        </div>
-
-        <div style="padding: 1.5rem; background: #f8f9fa; border-radius: 8px; border-left: 4px solid #e74c3c;">
-            <h3 style="color: #e74c3c;">Executive Suite</h3>
-            <p style="font-size: 1.5rem; margin: 0.5rem 0;">₹7,500</p>
-            <p style="color: #666;">per night (default)</p>
-        </div>
+    <div style="text-align: center; padding: 3rem; color: var(--text-secondary);">
+        <i class="fas fa-door-open" style="font-size: 48px; margin-bottom: 20px; color: var(--text-light);"></i>
+        <h3>No rooms found</h3>
+        <p>Rooms will appear here once they are added to the system.</p>
     </div>
-    <p style="margin-top: 1rem; color: #666; font-style: italic;">
-        Note: You can customize individual room prices using the "Edit Room" button
-    </p>
 </div>
+{% endif %}
 {% endblock %}

@@ -1,88 +1,114 @@
 {% extends "base.html" %}
 
-{% block title %}Dashboard - Chennai BnB PMS{% endblock %}
+{% block title %}Dashboard - {{ hotel.name }}{% endblock %}
+
+{% block page_title %}Dashboard{% endblock %}
 
 {% block content %}
-<h1 style="margin-bottom: 2rem;">Dashboard</h1>
-
-<div class="stats-grid">
-    <div class="stat-card" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
-        <h3>{{ total_rooms }}</h3>
-        <p>Total Rooms</p>
+<div class="dashboard-summary grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+    <div class="summary-card">
+        <div class="icon"><i class="fas fa-bed"></i></div>
+        <div>
+            <p>Total Rooms</p>
+            <h3>{{ total_rooms|default(0) }}</h3>
+        </div>
     </div>
-
-    <div class="stat-card" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);">
-        <h3>{{ occupied_rooms }}</h3>
-        <p>Occupied Rooms</p>
+    <div class="summary-card">
+        <div class="icon"><i class="fas fa-door-open"></i></div>
+        <div>
+            <p>Available</p>
+            <h3>{{ available_rooms|default(0) }}</h3>
+        </div>
     </div>
-
-    <div class="stat-card" style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);">
-        <h3>{{ occupancy_rate|round(1) }}%</h3>
-        <p>Occupancy Rate</p>
+    <div class="summary-card">
+        <div class="icon"><i class="fas fa-user-check"></i></div>
+        <div>
+            <p>Occupied</p>
+            <h3>{{ occupied_rooms|default(0) }}</h3>
+        </div>
     </div>
-
-    <div class="stat-card" style="background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);">
-        <h3>{{ available_rooms }}</h3>
-        <p>Available Rooms</p>
-    </div>
-</div>
-
-{% if maintenance_rooms > 0 %}
-<div class="card" style="background: #fff3cd; border-left: 4px solid #f39c12;">
-    <h2 style="color: #856404;">⚠️ Maintenance Alert</h2>
-    <p style="color: #856404; margin-top: 0.5rem;">
-        {{ maintenance_rooms }} room(s) currently under maintenance
-    </p>
-</div>
-{% endif %}
-
-<div class="stats-grid" style="grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));">
-    <div class="card">
-        <h2 style="margin-bottom: 1rem;">Today's Check-ins</h2>
-        <h3 style="color: #3498db;">{{ check_ins }}</h3>
-        <p style="color: #666;">guests arriving today</p>
-    </div>
-
-    <div class="card">
-        <h2 style="margin-bottom: 1rem;">Today's Check-outs</h2>
-        <h3 style="color: #e74c3c;">{{ check_outs }}</h3>
-        <p style="color: #666;">guests departing today</p>
+    <div class="summary-card">
+        <div class="icon"><i class="fas fa-percentage"></i></div>
+        <div>
+            <p>Occupancy Rate</p>
+            <h3>{{ "%.1f"|format(occupancy_rate|default(0)) }}%</h3>
+        </div>
     </div>
 </div>
 
-{% if checked_in_guests|length > 0 %}
-<div class="card">
-    <h2 style="margin-bottom: 1rem;">Currently Checked-In Guests ({{ checked_in_guests|length }})</h2>
-    <table>
-        <thead>
-            <tr>
-                <th>Guest Name</th>
-                <th>Room</th>
-                <th>Check-in Date</th>
-                <th>Check-out Date</th>
-                <th>Contact</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for guest in checked_in_guests %}
-            <tr>
-                <td><strong>{{ guest.guest_name }}</strong></td>
-                <td>{{ guest.room_number }} ({{ guest.room_type }})</td>
-                <td>{{ guest.check_in }}</td>
-                <td>{{ guest.check_out }}</td>
-                <td>{{ guest.guest_phone }}</td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
-</div>
-{% endif %}
+<div class="today-activity mb-6 grid grid-cols-1 md:grid-cols-2 gap-4">
+    <div class="activity-card">
+        <h3><i class="fas fa-clock"></i> Today's Activity</h3>
+        <div class="activity-items grid grid-cols-2 gap-4 mt-2">
+            <div class="activity-item">
+                <div class="icon"><i class="fas fa-sign-in-alt"></i></div>
+                <div>
+                    <h4>Check-ins Today</h4>
+                    <p>{{ check_ins|default(0) }}</p>
+                </div>
+            </div>
+            <div class="activity-item">
+                <div class="icon"><i class="fas fa-sign-out-alt"></i></div>
+                <div>
+                    <h4>Check-outs Today</h4>
+                    <p>{{ check_outs|default(0) }}</p>
+                </div>
+            </div>
+        </div>
+    </div>
 
-<div class="card">
-    <h2 style="margin-bottom: 1rem;">Quick Actions</h2>
-    <a href="/new-booking" class="btn btn-success">New Booking</a>
-    <a href="/rooms" class="btn" style="margin-left: 1rem;">Manage Rooms</a>
-    <a href="/bookings" class="btn" style="margin-left: 1rem;">View All Bookings</a>
-    <a href="/guests" class="btn" style="margin-left: 1rem;">View Guests</a>
+    <div class="current-guests-card">
+        <h3><i class="fas fa-users"></i> Current Guests</h3>
+        {% if checked_in_guests %}
+            <div class="guest-list mt-2">
+                {% for guest in checked_in_guests[:5] %}
+                <div class="guest-item flex items-center mb-2">
+                    <div class="icon mr-2"><i class="fas fa-user"></i></div>
+                    <div>
+                        <h5>{{ guest.guest_name }}</h5>
+                        <p>Room {{ guest.room_number }}</p>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        {% else %}
+            <p class="mt-2">No guests currently checked in</p>
+        {% endif %}
+    </div>
+</div>
+
+<div class="room-distribution mb-6">
+    <h3><i class="fas fa-chart-pie"></i> Room Distribution</h3>
+    <div class="chart-container mt-2" style="height: 300px;">
+        <canvas id="occupancyChart"></canvas>
+    </div>
 </div>
 {% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+const occupancyData = {{ [available_rooms|default(0)|int, occupied_rooms|default(0)|int, maintenance_rooms|default(0)|int] | tojson }};
+const ctx = document.getElementById('occupancyChart').getContext('2d');
+
+new Chart(ctx, {
+    type: 'doughnut',
+    data: {
+        labels: ['Available', 'Occupied', 'Maintenance'],
+        datasets: [{
+            data: occupancyData,
+            backgroundColor: ['#10b981', '#f59e0b', '#ef4444'],
+            borderWidth: 0
+        }]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+            legend: { position: 'bottom' }
+        }
+    }
+});
+</script>
+{% endblock %}
+

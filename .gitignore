@@ -1,2 +1,9 @@
+# Python cache
 *.pyc
 __pycache__/
+
+# Flask session folder inside agent
+agent/flask_session/
+
+# Environment variables
+.env
